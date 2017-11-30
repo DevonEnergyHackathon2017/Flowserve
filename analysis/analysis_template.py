@@ -9,8 +9,6 @@
 from api_devon import api_devon_osi
 from Timer import Timer
 from collections import Counter
-from datetime import datetime, timedelta
-import time
 import os
 import pandas
 import numpy
@@ -83,9 +81,11 @@ api_osi = api_devon_osi()
 #---------------------------------------------------------------------------------------------#
 # pull the data from the osi api
 #---------------------------------------------------------------------------------------------#
+
 timer_pull_data = Timer()
-pnl_skid_77 = api_osi.get_data()
+df_skid_77 = api_osi.get_data()
 timer_pull_data.stop_timer('time to pull all the data:')
+del timer_pull_data
 
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#

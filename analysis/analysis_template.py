@@ -87,6 +87,22 @@ df_skid_77 = api_osi.get_data()
 timer_pull_data.stop_timer('time to pull all the data:')
 del timer_pull_data
 
+#---------------------------------------------------------------------------------------------#
+# calculate the costs
+#---------------------------------------------------------------------------------------------#
+
+df_skid_77['cost_hhp'] = 0.25 * df_skid_77['HHP'] ** 2
+df_skid_77['cost_sand'] = df_skid_77['Blender Prop Total'] * 0.05
+df_skid_77['cost_water'] = df_skid_77['Slurry Total'] - \
+          (df_skid_77['Blender Prop Total'] / (22.1 * 42))
+          
+dict_chem = {'fr':['Friction Reducer','cost_frict_red'], 'ga':['Gelling Agent', 'cost_gell_ag'], 
+             'sc':['Surface Crosslinker', 'cost_sur_cross']}
+for string_chem in dict_chem:
+    df_skid_77[dict_chem[string_chem][1]] = (df_skid_77[dict_chem[string_chem][0]] / 60) * \
+              (100 / 42)
+    df_skid_77[dict_chem[string_chem][1]] = df_skid_77[dict_chem[string_chem][1]].cumsum()
+
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 #

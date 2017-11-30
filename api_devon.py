@@ -20,7 +20,7 @@ simplefilter('ignore')
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 
-class api_devon_osi():
+class api_devon_osi(object):
     def __init__(self):
         self.client = PIWebApiClient("https://pi.dvnhackathon.com/piwebapi/", False, 
                                "hacker", "Pa$$w0rd", True) 

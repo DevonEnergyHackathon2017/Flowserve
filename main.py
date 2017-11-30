@@ -7,6 +7,7 @@ from datetime import datetime as dt
 from classes.well_vis_class import well_vis
 #printcommen
 
+# Init app
 app = dash.Dash('Well Completions Optimizer')
 app.config.suppress_callback_exceptions = True
 

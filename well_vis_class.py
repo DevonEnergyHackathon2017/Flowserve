@@ -1,15 +1,18 @@
-import math
 import numpy as np
 import pyodbc
 import pandas as pd 
 import plotly
 import plotly.graph_objs as go
+import pdb 
 
 class well_vis(object):
 	def __init__(self, WellId):
 		self.WellId = WellId
 		self.connection = self.connect_db()
-		self._meta_data = self.query_well_deviation_meta()
+
+		self._dev_meta_data = self.query_well_deviation_meta('DeviationSurveys')
+		self._perf_meta_data = self.query_well_deviation_meta('Perforations')
+
 		self._processed_data = self.process()
 		self._plot_data = self.ready_plot_data()
 
@@ -19,15 +22,15 @@ class well_vis(object):
 			'DATABASE=CompletionsProblem;UID=SQLREADONLY;PWD=DVNH@ck3r')
 		return conn
 
-	def query_well_deviation_meta(self):
-		query = 'select * from [dbo].[DeviationSurveys] where WellId = ' + \
+	def query_well_deviation_meta(self, table):
+		query = 'select * from [dbo].' + table + ' where WellId = ' + \
 			str(self.WellId)
 		return pd.read_sql(query, self.connection)
 
 	def process(self):
 		working = pd.concat([
 			pd.DataFrame([{'WellId':self.WellId, 'MD':0, 'Incl':0, 'Azm':0}]),
-			self._meta_data])
+			self._dev_meta_data])
 		working.reset_index(inplace = True, drop = True)
 		lookahead_length = np.array((working['MD'] - working['MD'].shift(1))[1:])
 		lookahead_length = np.append(lookahead_length, None)
@@ -63,31 +66,59 @@ class well_vis(object):
 			self._plot_data['cum_disp_dist']])
 		true_north_seq = [x for x in range(int(max_lateral_distance))]
 
-		trace = go.Scatter3d(
+		# Assign colors by perforations
+		perforation_flag = np.ndarray(shape = (self._processed_data.shape[0],))
+		flag = 1
+		for x in range(self._processed_data.shape[0]):
+			flag = 0
+			depth = self._processed_data['MD'][x]
+			for y in self._perf_meta_data[['Top', 'Btm']].copy().as_matrix():
+				if depth >= y[0] and depth <= y[1]:
+					perforation_flag[x] = -1
+					flag = 1
+					continue
+			if flag == 0: perforation_flag[x] = depth
+
+		well_path = go.Scatter3d(
 		    x=self._plot_data['cum_disp_dist'],
 		    y=self._plot_data['z_coord'],
 		    z=self._plot_data['cum_tvd'],
 		    marker=dict(
-		        color=self._plot_data['cum_tvd'],
-		        size=4,
+		        color = self._plot_data['cum_tvd'],
+		        size=6,
 		        symbol='circle',
 		        colorscale='Viridis', 
 		        line=dict(
 		            color='#1f77b4',
-		            width=.33
+		            width=.1
 		        ),
-		        opacity=.7
+		        opacity=.2
 		    )
 		)
 
-		data = [trace]
+		perforations = go.Scatter3d(
+		    x=self._plot_data['cum_disp_dist'].iloc[np.where(perforation_flag == -1)[0]],
+		    y=self._plot_data['z_coord'].iloc[np.where(perforation_flag == -1)[0]],
+		    z=self._plot_data['cum_tvd'].iloc[np.where(perforation_flag == -1)[0]],
+		    mode = 'lines',
+		    line=dict(
+		        color = '#FF4500',
+		        width=6
+		    )
+		)
+
+		data = [well_path, perforations]
 
 		layout = dict(
-		    width= 1150,
-		    height=800,
-		    autosize=False,
 		    title='Well Model',
 		    showlegend = False,
+		    margin=go.Margin(
+		        l=50,
+		        r=50,
+		        b=100,
+		        t=100,
+		        pad=4
+		    ),
 		    scene=dict(
 		        xaxis=dict(
 		        	title = 'Distance',
@@ -119,8 +150,8 @@ class well_vis(object):
 
 		        camera = dict(
 				    up=dict(x=1, y=1, z=1),
-				    center=dict(x=0, y=0, z=0),
-				    eye=dict(x=1.5, y=3.75, z=.5)
+    				center=dict(x=0, y=0, z=0),
+				    eye=dict(x=3, y=5.5, z=.75)
 				)
 		    ),
 		)
@@ -129,3 +160,4 @@ class well_vis(object):
 		fig['layout'].update(scene=dict(aspectmode="data"))
 		return fig
 		# plotly.offline.plot(fig, filename = 'well_model.html')
+

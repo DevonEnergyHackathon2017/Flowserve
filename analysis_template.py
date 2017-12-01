@@ -6,69 +6,19 @@
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#  
       
-from api_devon import api_devon_osi
-from Timer import Timer
+from api_devon_osi.api_devon import api_devon_osi
 from collections import Counter
 import os
 import pandas
-import numpy
+import numpy as np
 import warnings
+import pickle
+from datetime import datetime
 
 # supress warnings
 warnings.simplefilter('ignore')
 
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
-#
-# Main Method
-#
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
-#$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
-
-
-'''
-this is the main method tests the bulk insert and single insert for the SqlInsertIntoTable method
- 
-Requirements:
-None
-
-Inputs:
-list_args
-Type: list
-Desc: arguements for login to the sql server
-list_args[0] -> type: string; user name
-list_args[1] -> type: string; password
-      
-Important Info:
-None
-
-Return:
-None
-Type: None
-Description: None
-'''
-
-#---------------------------------------------------------------------------------------------#
-# object declarations
-#---------------------------------------------------------------------------------------------#
-
 api_osi = api_devon_osi()
-
-#---------------------------------------------------------------------------------------------#
-# time declarations
-#---------------------------------------------------------------------------------------------#
-
-#---------------------------------------------------------------------------------------------#
-# iteration declarations (list, set, tuple, counter, dictionary)
-#---------------------------------------------------------------------------------------------#
-
-#---------------------------------------------------------------------------------------------#
-# variables declarations
-#---------------------------------------------------------------------------------------------#
-
-#---------------------------------------------------------------------------------------------#
-# db connections
-#---------------------------------------------------------------------------------------------#
 
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
@@ -82,39 +32,63 @@ api_osi = api_devon_osi()
 # pull the data from the osi api
 #---------------------------------------------------------------------------------------------#
 
-timer_pull_data = Timer()
 df_skid_77 = api_osi.get_data()
-timer_pull_data.stop_timer('time to pull all the data:')
-del timer_pull_data
-
+df_skid_77.to_pickle('data/api_call_raw.dat')
+with open(r'data/api_call_raw.dat', "rb") as input_file:
+ 	df_skid_77 = pickle.load(input_file)
 #---------------------------------------------------------------------------------------------#
 # calculate the costs
 #---------------------------------------------------------------------------------------------#
 
-df_skid_77['cost_hhp'] = 0.25 * df_skid_77['HHP'] ** 2
-df_skid_77['cost_sand'] = df_skid_77['Blender Prop Total'] * 0.05
-df_skid_77['cost_water'] = df_skid_77['Slurry Total'] - \
-          (df_skid_77['Blender Prop Total'] / (22.1 * 42))
-df_skid_77['int_seconds'] = [x for x in range(0, len(df_skid_77))]
-df_skid_77['cost_time'] = df_skid_77['int_seconds'] * (10000 / 3600)
-          
-dict_chem = {'fr':['Friction Reducer','cost_frict_red'], 'ga':['Gelling Agent', 'cost_gell_ag'], 
-             'sc':['Surface Crosslinker', 'cost_sur_cross']}
-for string_chem in dict_chem:
-    df_skid_77[dict_chem[string_chem][1]] = (df_skid_77[dict_chem[string_chem][0]] / 60) * \
-              (100 / 42)
-    df_skid_77[dict_chem[string_chem][1]] = df_skid_77[dict_chem[string_chem][1]].cumsum()
-    
-df_skid_77['cost_total'] = df_skid_77['cost_frict_red'] + df_skid_77['cost_gell_ag'] + \
-        df_skid_77['cost_sur_cross'] + df_skid_77['cost_water'] + df_skid_77['cost_sand'] + \
-        df_skid_77['cost_hhp'] + df_skid_77['cost_time']
-        
-#---------------------------------------------------------------------------------------------#
-# calculate other metrics
-#---------------------------------------------------------------------------------------------#
+# helper funtion to clear out api failures
+def clean_dicts(value_col):
+	out = np.array([np.nan if isinstance(x, dict) else x for x in \
+		value_col.as_matrix()])
+	return out
 
-time_min = df_skid_77.index.values.min()
-df_skid_77['time_delta'] = df_skid_77.index - time_min
+# helper function to iterate over some similar chemical values
+def iter_chems(chem):
+	return (clean_dicts(df_skid_77[chem]['Value']) / 60) * (100 / 42)
+
+# get various costs
+cost_hhp = np.array(0.25 * df_skid_77['HHP']['Value'] ** 2)
+cost_sand = clean_dicts(df_skid_77['Blender Prop Total']['Value']) * .05
+cost_water = clean_dicts(df_skid_77['Slurry Total']['Value']) / \
+	(clean_dicts(df_skid_77['Blender Prop Total']['Value']) / 928.2) #22.1 * 42
+
+seconds_range = np.array([x for x in range(0, df_skid_77['Blender Prop Total'].shape[0])])
+cost_time = [(10000 / 3600)] * len(cost_hhp)
+          
+cost_frict_red = iter_chems('Friction Reducer')
+cost_gell_ag = iter_chems('Gelling Agent')
+cost_sur_cross = iter_chems('Surface Crosslinker')
+
+cost_total = cost_hhp + cost_sand + cost_water + cost_frict_red + cost_gell_ag + \
+	cost_sur_cross + cost_time
+
+output_df = pandas.DataFrame({
+	'cost_time':cost_time,
+	'cost_sur_cross':cost_sur_cross,
+	'cost_hhp':cost_hhp,
+	'cost_sand':cost_sand,
+	'cost_water':cost_water,
+	'cost_frict_red':cost_frict_red,
+	'cost_gell_ag':cost_gell_ag,
+	'cost_total':cost_total,
+})
+output_df.to_csv('data/api_cost_sample_data.csv')
+
+# get value columns from all attributes
+value_list = []
+col_names = []
+for x in df_skid_77.iteritems():
+	col_names.append(x[0])
+	df_extract = clean_dicts(x[1]['Value'])
+	value_list.append(df_extract)
+output_vals = pandas.DataFrame(value_list)
+output_vals = output_vals.transpose()
+output_vals.columns = col_names
+output_vals.to_csv('data/api_sample_data.csv')
 
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#

@@ -95,6 +95,8 @@ df_skid_77['cost_hhp'] = 0.25 * df_skid_77['HHP'] ** 2
 df_skid_77['cost_sand'] = df_skid_77['Blender Prop Total'] * 0.05
 df_skid_77['cost_water'] = df_skid_77['Slurry Total'] - \
           (df_skid_77['Blender Prop Total'] / (22.1 * 42))
+df_skid_77['int_seconds'] = [x for x in range(0, len(df_skid_77))]
+df_skid_77['cost_time'] = df_skid_77['int_seconds'] * (10000 / 3600)
           
 dict_chem = {'fr':['Friction Reducer','cost_frict_red'], 'ga':['Gelling Agent', 'cost_gell_ag'], 
              'sc':['Surface Crosslinker', 'cost_sur_cross']}
@@ -102,6 +104,10 @@ for string_chem in dict_chem:
     df_skid_77[dict_chem[string_chem][1]] = (df_skid_77[dict_chem[string_chem][0]] / 60) * \
               (100 / 42)
     df_skid_77[dict_chem[string_chem][1]] = df_skid_77[dict_chem[string_chem][1]].cumsum()
+    
+df_skid_77['cost_total'] = df_skid_77['cost_frict_red'] + df_skid_77['cost_gell_ag'] + \
+        df_skid_77['cost_sur_cross'] + df_skid_77['cost_water'] + df_skid_77['cost_sand'] + \
+        df_skid_77['cost_hhp'] + df_skid_77['cost_time']
 
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#

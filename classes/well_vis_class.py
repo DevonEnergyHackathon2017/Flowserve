@@ -3,7 +3,6 @@ import pyodbc
 import pandas as pd 
 import plotly
 import plotly.graph_objs as go
-import pdb 
 
 """
 A class to model the 3D orientation of a well bore using deviation survey data.

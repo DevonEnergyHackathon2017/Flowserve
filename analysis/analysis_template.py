@@ -108,6 +108,13 @@ for string_chem in dict_chem:
 df_skid_77['cost_total'] = df_skid_77['cost_frict_red'] + df_skid_77['cost_gell_ag'] + \
         df_skid_77['cost_sur_cross'] + df_skid_77['cost_water'] + df_skid_77['cost_sand'] + \
         df_skid_77['cost_hhp'] + df_skid_77['cost_time']
+        
+#---------------------------------------------------------------------------------------------#
+# calculate other metrics
+#---------------------------------------------------------------------------------------------#
+
+time_min = df_skid_77.index.values.min()
+df_skid_77['time_delta'] = df_skid_77.index - time_min
 
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#
 #$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$#

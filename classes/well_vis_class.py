@@ -5,14 +5,24 @@ import plotly
 import plotly.graph_objs as go
 import pdb 
 
+"""
+A class to model the 3D orientation of a well bore using deviation survey data.
+Since this class is meant to be used in conjunction with a dash application,
+the do_plot function returns a figure, the constructor for a plotly graph, but
+not the graph itself.
+
+Constructor accepts a wellID to query from sql server.
+"""
 class well_vis(object):
 	def __init__(self, WellId):
 		self.WellId = WellId
 		self.connection = self.connect_db()
 
+		# getting data
 		self._dev_meta_data = self.query_well_deviation_meta('DeviationSurveys')
 		self._perf_meta_data = self.query_well_deviation_meta('Perforations')
 
+		# processing and plotting
 		self._processed_data = self.process()
 		self._plot_data = self.ready_plot_data()
 
@@ -27,6 +37,7 @@ class well_vis(object):
 			str(self.WellId)
 		return pd.read_sql(query, self.connection)
 
+	# some preprocessing
 	def process(self):
 		working = pd.concat([
 			pd.DataFrame([{'WellId':self.WellId, 'MD':0, 'Incl':0, 'Azm':0}]),
@@ -36,7 +47,7 @@ class well_vis(object):
 		lookahead_length = np.append(lookahead_length, None)
 		working['lookahead_length'] = lookahead_length
 
-				# get change in depths and displacement from 0
+		# get change in depths and displacement from 0
 		working['delta_disp_dist'] = working['lookahead_length'] * \
 			np.sin(working['Incl'] * 0.0174532925)
 		working['delta_tvd'] = working['lookahead_length'] * \
@@ -53,6 +64,9 @@ class well_vis(object):
 
 		return working
 
+
+	# more preprocessing - before now the meta data is still useful, but now
+	# its really just for plotting
 	def ready_plot_data(self):
 		plot_data = self._processed_data[['cum_disp_dist', 'cum_tvd', 'z_coord']].copy()
 		plot_data['cum_tvd'] = plot_data['cum_tvd'] * -1
@@ -61,6 +75,7 @@ class well_vis(object):
 			pd.DataFrame([{'cum_disp_dist':0, 'cum_tvd':0, 'z_coord':0}]), plot_data])
 		return plot_data
 
+	# creating plotly figure
 	def do_plot(self):
 		max_lateral_distance = np.max([self._plot_data['z_coord'],
 			self._plot_data['cum_disp_dist']])
